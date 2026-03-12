@@ -1,0 +1,14 @@
+{
+  "name": "mtg-teams-bot",
+  "version": "1.0.0",
+  "description": "Teams bot that posts MTG card images",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "botbuilder": "^4.23.3",
+    "express": "^4.21.2",
+    "node-fetch": "^2.7.0"
+  }
+}
