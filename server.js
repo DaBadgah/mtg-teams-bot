@@ -1,34 +1,52 @@
 const express = require("express");
-const { BotFrameworkAdapter } = require("botbuilder");
 const fetch = require("node-fetch");
+const {
+  CloudAdapter,
+  ConfigurationBotFrameworkAuthentication
+} = require("botbuilder");
 
 const app = express();
 
-const adapter = new BotFrameworkAdapter({
-  appId: process.env.MicrosoftAppId,
-  appPassword: process.env.MicrosoftAppPassword
-});
+const botFrameworkAuthentication =
+  new ConfigurationBotFrameworkAuthentication(process.env);
+
+const adapter = new CloudAdapter(botFrameworkAuthentication);
 
 adapter.onTurnError = async (context, error) => {
-  console.error("Bot error:", error);
-  await context.sendActivity("Bot had a meltdown.");
+  console.error("onTurnError:", error);
+  try {
+    await context.sendActivity("Bot error.");
+  } catch (e) {
+    console.error("Failed sending error activity:", e);
+  }
 };
 
-app.post("/api/messages", (req, res) => {
-  adapter.processActivity(req, res, async (context) => {
-    if (context.activity.type !== "message") return;
+app.get("/", (req, res) => {
+  res.send("MTG Teams bot is running.");
+});
 
-    const text = context.activity.text || "";
-    const match = text.match(/\[\[(.*?)\]\]/);
+app.post("/api/messages", async (req, res) => {
+  console.log("POST /api/messages hit");
 
-    if (!match) {
-      return;
-    }
+  try {
+    await adapter.process(req, res, async (context) => {
+      console.log("Activity type:", context.activity.type);
+      console.log("Incoming text:", context.activity.text);
 
-    const cardName = match[1].trim();
-    const url = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
+      if (context.activity.type !== "message") return;
 
-    try {
+      const text = context.activity.text || "";
+      const match = text.match(/\[\[(.*?)\]\]/);
+
+      if (!match) {
+        console.log("No [[card]] pattern found");
+        return;
+      }
+
+      const cardName = match[1].trim();
+      console.log("Card requested:", cardName);
+
+      const url = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
       const response = await fetch(url);
       const card = await response.json();
 
@@ -56,11 +74,15 @@ app.post("/api/messages", (req, res) => {
           }
         ]
       });
-    } catch (err) {
-      console.error(err);
-      await context.sendActivity("Error looking up that card.");
+
+      console.log("Reply sent");
+    });
+  } catch (err) {
+    console.error("process error:", err);
+    if (!res.headersSent) {
+      res.status(500).send("Bot error");
     }
-  });
+  }
 });
 
 const port = process.env.PORT || 3978;
