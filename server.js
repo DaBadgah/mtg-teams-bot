@@ -1,3 +1,6 @@
+const app = express();
+app.use(express.json()); // Add this line
+
 const express = require("express");
 const fetch = require("node-fetch");
 const {
