@@ -1,3 +1,30 @@
+const express = require("express");
+const fetch = require("node-fetch");
+const {
+  CloudAdapter,
+  ConfigurationBotFrameworkAuthentication
+} = require("botbuilder");
+
+const app = express();
+
+const botFrameworkAuthentication =
+  new ConfigurationBotFrameworkAuthentication(process.env);
+
+const adapter = new CloudAdapter(botFrameworkAuthentication);
+
+adapter.onTurnError = async (context, error) => {
+  console.error("onTurnError:", error);
+  try {
+    await context.sendActivity("Bot error.");
+  } catch (e) {
+    console.error("Failed sending error activity:", e);
+  }
+};
+
+app.get("/", (req, res) => {
+  res.send("MTG Teams bot is running.");
+});
+
 app.post("/api/messages", async (req, res) => {
   console.log("POST /api/messages hit");
 
@@ -65,4 +92,9 @@ app.post("/api/messages", async (req, res) => {
       res.status(500).send("Bot error");
     }
   }
+});
+
+const port = process.env.PORT || 3978;
+app.listen(port, () => {
+  console.log(`Bot listening on port ${port}`);
 });
