@@ -1,6 +1,3 @@
-const app = express();
-app.use(express.json()); // Add this line
-
 const express = require("express");
 const fetch = require("node-fetch");
 const {
@@ -10,94 +7,29 @@ const {
 
 const app = express();
 
-const botFrameworkAuthentication =
-  new ConfigurationBotFrameworkAuthentication(process.env);
+// 1. ADD THIS: Use built-in express middleware if needed, 
+// but usually, we let the adapter handle the request directly.
+app.use(express.json()); 
 
+const botFrameworkAuthentication = new ConfigurationBotFrameworkAuthentication(process.env);
 const adapter = new CloudAdapter(botFrameworkAuthentication);
 
-adapter.onTurnError = async (context, error) => {
-  console.error("onTurnError:", error);
-  try {
-    await context.sendActivity("Bot error.");
-  } catch (e) {
-    console.error("Failed sending error activity:", e);
-  }
-};
-
-app.get("/", (req, res) => {
-  res.send("MTG Teams bot is running.");
-});
+// ... (error handler and GET route)
 
 app.post("/api/messages", async (req, res) => {
   console.log("POST /api/messages hit");
 
-  try {
-    await adapter.process(req, res, async (context) => {
-      console.log("Activity type:", context.activity.type);
-      console.log("Incoming text:", context.activity.text);
-
-      if (context.activity.type !== "message") {
-        console.log("Not a message activity");
-        return;
-      }
-
-      const text = context.activity.text || "";
-      const match = text.match(/\[\[(.*?)\]\]/);
-
-      if (!match) {
-        console.log("No [[card]] pattern found");
-        return;
-      }
-
-      const cardName = match[1].trim();
-      console.log("Card requested:", cardName);
-
-      const url = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
-      const response = await fetch(url);
-      const card = await response.json();
-
-      console.log("Scryfall status:", response.status);
-
-      if (!response.ok || card.object === "error") {
-        console.log("Card not found");
-        await context.sendActivity(`Couldn't find "${cardName}".`);
-        return;
-      }
-
-      const imageUrl =
-        card.image_uris?.normal ||
-        card.card_faces?.[0]?.image_uris?.normal;
-
-      console.log("Image URL:", imageUrl);
-
-      if (!imageUrl) {
-        console.log("No image available");
-        await context.sendActivity(`Found "${card.name}", but no image was available.`);
-        return;
-      }
-
-      await context.sendActivity({
-        attachments: [
-          {
-            contentType: "application/vnd.microsoft.card.thumbnail",
-            content: {
-              images: [{ url: imageUrl }]
-            }
-          }
-        ]
-      });
-
-      console.log("Reply sent");
-    });
-  } catch (err) {
-    console.error("process error:", err);
-    if (!res.headersSent) {
-      res.status(500).send("Bot error");
-    }
-  }
+  // 2. CHANGE THIS: Use the adapter's built-in Express integration
+  // This ensures the body is parsed correctly by the Bot SDK
+  await adapter.process(req, res, (context) => botLogic(context));
 });
 
-const port = process.env.PORT || 3978;
-app.listen(port, () => {
-  console.log(`Bot listening on port ${port}`);
-});
+// 3. Move your logic into a separate function for clarity
+async function botLogic(context) {
+    console.log("Activity type:", context.activity.type);
+    console.log("Incoming text:", context.activity.text);
+
+    if (context.activity.type !== "message") return;
+
+    // ... (rest of your Scryfall logic)
+}
